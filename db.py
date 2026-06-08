@@ -77,6 +77,22 @@ def get_past_slots(slot_date: str) -> set[str]:
     return {t for t in config.SLOT_TIMES if t <= now_hm}
 
 
+def delete_past_bookings() -> int:
+    """Удалить брони, время которых уже прошло.
+
+    Бронь считается прошедшей, если её дата+время раньше текущего момента
+    (например, слот 14:00 удаляется начиная с 14:01). Возвращает количество
+    удалённых записей.
+    """
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM bookings WHERE slot_date || ' ' || slot_time < ?",
+            (now,),
+        )
+        return cursor.rowcount
+
+
 def book_slot(
     user_id: int,
     username: str | None,
