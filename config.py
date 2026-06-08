@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0"))
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
+ADMIN_ID: int = int(os.getenv("ADMIN_ID", "0").strip())
 
 DB_PATH: str = "bot.db"
 
