@@ -1,0 +1,31 @@
+# Секреты / окружение
+.env
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Логи
+*.log
+
+# IDE / ОС
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
