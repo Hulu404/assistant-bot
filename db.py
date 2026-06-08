@@ -19,18 +19,30 @@ def init_db() -> None:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS bookings (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id    INTEGER NOT NULL,
-                username   TEXT,
-                full_name  TEXT,
-                phone      TEXT,
-                slot_date  TEXT NOT NULL,
-                slot_time  TEXT NOT NULL,
-                created_at TEXT NOT NULL,
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL,
+                username        TEXT,
+                full_name       TEXT,
+                phone           TEXT,
+                slot_date       TEXT NOT NULL,
+                slot_time       TEXT NOT NULL,
+                meeting_format  TEXT,
+                address         TEXT,
+                created_at      TEXT NOT NULL,
                 UNIQUE (slot_date, slot_time)
             )
             """
         )
+        _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Добавить недостающие столбцы в уже существующую таблицу."""
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(bookings)")}
+    if "meeting_format" not in cols:
+        conn.execute("ALTER TABLE bookings ADD COLUMN meeting_format TEXT")
+    if "address" not in cols:
+        conn.execute("ALTER TABLE bookings ADD COLUMN address TEXT")
 
 
 def get_week_dates() -> list[tuple[int, str, str, str]]:
@@ -101,6 +113,8 @@ def book_slot(
     day_offset: int,
     slot_date: str,
     slot_time: str,
+    meeting_format: str | None = None,
+    address: str | None = None,
 ) -> int | None:
     """Забронировать слот.
 
@@ -137,8 +151,8 @@ def book_slot(
             """
             INSERT INTO bookings
                 (user_id, username, full_name, phone,
-                 slot_date, slot_time, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                 slot_date, slot_time, meeting_format, address, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -147,6 +161,8 @@ def book_slot(
                 phone,
                 slot_date,
                 slot_time,
+                meeting_format,
+                address,
                 created_at,
             ),
         )

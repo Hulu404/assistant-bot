@@ -54,15 +54,29 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "slot_date": date_str,
             "slot_time": slot_time,
         }
+        ctx.user_data.pop("awaiting_address", None)
         await q.edit_message_text(
             f"Ты выбрал: {date_str} в {slot_time}.\n"
-            "Поделись номером телефона для подтверждения записи:"
+            "Выбери формат встречи:",
+            reply_markup=keyboards.format_keyboard(),
         )
-        await ctx.bot.send_message(
-            chat_id=q.message.chat_id,
-            text="👇 Нажми кнопку ниже:",
-            reply_markup=keyboards.contact_keyboard(),
-        )
+
+    elif prefix == "fmt":
+        pending = ctx.user_data.get("pending")
+        if not pending:
+            await q.edit_message_text("Сессия устарела. Начни заново: /start")
+            return
+        meeting_format = data.split(":")[1]
+        pending["meeting_format"] = meeting_format
+        if meeting_format == "offline":
+            ctx.user_data["awaiting_address"] = True
+            await q.edit_message_text(
+                "📍 Офлайн-встреча. Напиши одним сообщением адрес, где встретимся:"
+            )
+            return
+        pending["address"] = None
+        await q.edit_message_text("🌐 Онлайн-встреча.")
+        await _ask_phone(ctx, q.message.chat_id)
 
     elif prefix == "back":
         await q.edit_message_text(
@@ -94,6 +108,39 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+async def on_address(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Принять адрес офлайн-встречи и перейти к запросу телефона."""
+    if not ctx.user_data.get("awaiting_address"):
+        # Бот не ждёт адрес — игнорируем произвольный текст.
+        return
+    pending = ctx.user_data.get("pending")
+    if not pending:
+        ctx.user_data.pop("awaiting_address", None)
+        await update.message.reply_text("Сессия устарела. Начни заново: /start")
+        return
+
+    pending["address"] = update.message.text.strip()
+    ctx.user_data.pop("awaiting_address", None)
+    await update.message.reply_text(f"📍 Адрес сохранён: {pending['address']}")
+    await _ask_phone(ctx, update.message.chat_id)
+
+
+async def _ask_phone(ctx: ContextTypes.DEFAULT_TYPE, chat_id: int) -> None:
+    """Попросить пользователя поделиться номером телефона."""
+    await ctx.bot.send_message(
+        chat_id=chat_id,
+        text="Поделись номером телефона для подтверждения записи 👇",
+        reply_markup=keyboards.contact_keyboard(),
+    )
+
+
+def _format_label(meeting_format: str | None, address: str | None) -> str:
+    """Человекочитаемое описание формата встречи."""
+    if meeting_format == "offline":
+        return f"📍 Офлайн — {address}"
+    return "🌐 Онлайн"
+
+
 async def on_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработать присланный контакт — завершить бронирование."""
     pending = ctx.user_data.get("pending")
@@ -106,6 +153,8 @@ async def on_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     user = update.effective_user
     phone = update.message.contact.phone_number
+    meeting_format = pending.get("meeting_format")
+    address = pending.get("address")
 
     booking_id = db.book_slot(
         user.id,
@@ -115,8 +164,11 @@ async def on_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         pending["day_offset"],
         pending["slot_date"],
         pending["slot_time"],
+        meeting_format,
+        address,
     )
     ctx.user_data.pop("pending", None)
+    ctx.user_data.pop("awaiting_address", None)
 
     if booking_id is None:
         await update.message.reply_text(
@@ -131,6 +183,7 @@ async def on_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     await update.message.reply_text(
         f"✅ Готово! Ты записан на {pending['slot_date']} в {pending['slot_time']}.\n"
+        f"Формат: {_format_label(meeting_format, address)}\n"
         "Посмотреть записи: /my",
         reply_markup=ReplyKeyboardRemove(),
     )
@@ -138,12 +191,14 @@ async def on_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ctx,
         "🆕 Новая запись №{id}\n"
         "Дата: {date} {time}\n"
+        "Формат: {fmt}\n"
         "Имя: {name}\n"
         "Username: @{username}\n"
         "Телефон: {phone}".format(
             id=booking_id,
             date=pending["slot_date"],
             time=pending["slot_time"],
+            fmt=_format_label(meeting_format, address),
             name=user.full_name,
             username=user.username or "—",
             phone=phone,

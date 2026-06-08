@@ -24,10 +24,15 @@ async def cmd_bookings(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     lines = [
-        "#{id}  {date} {time}\n  {name}  @{username}  📞{phone}".format(
+        "#{id}  {date} {time}  {fmt}\n  {name}  @{username}  📞{phone}".format(
             id=b["id"],
             date=b["slot_date"],
             time=b["slot_time"],
+            fmt=(
+                f"📍 {b['address']}"
+                if b["meeting_format"] == "offline"
+                else "🌐 Онлайн"
+            ),
             name=b["full_name"],
             username=b["username"] or "—",
             phone=b["phone"],

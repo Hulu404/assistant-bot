@@ -15,7 +15,7 @@ from telegram.ext import ContextTypes
 from admin import cmd_admin_cancel, cmd_bookings
 from config import BOT_TOKEN
 from db import delete_past_bookings, init_db
-from handlers import cmd_my, cmd_start, on_callback, on_contact
+from handlers import cmd_my, cmd_start, on_address, on_callback, on_contact
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +45,7 @@ def main() -> None:
     app.add_handler(CommandHandler("my", cmd_my))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.CONTACT, on_contact))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_address))
     app.add_handler(CommandHandler("bookings", cmd_bookings))
     app.add_handler(CommandHandler("cancel", cmd_admin_cancel))
 

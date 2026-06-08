@@ -55,6 +55,18 @@ def slots_keyboard(date_str: str, day_offset: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def format_keyboard() -> InlineKeyboardMarkup:
+    """Клавиатура выбора формата встречи."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🌐 Онлайн", callback_data="fmt:online"),
+                InlineKeyboardButton("📍 Офлайн", callback_data="fmt:offline"),
+            ]
+        ]
+    )
+
+
 def contact_keyboard() -> ReplyKeyboardMarkup:
     """Клавиатура запроса номера телефона."""
     return ReplyKeyboardMarkup(
@@ -68,10 +80,11 @@ def my_bookings_keyboard(bookings) -> InlineKeyboardMarkup:
     """Клавиатура со списком записей пользователя для отмены."""
     rows: list[list[InlineKeyboardButton]] = []
     for booking in bookings:
+        icon = "📍" if booking["meeting_format"] == "offline" else "🌐"
         rows.append(
             [
                 InlineKeyboardButton(
-                    f"❌ {booking['slot_date']}  {booking['slot_time']}",
+                    f"❌ {booking['slot_date']}  {booking['slot_time']}  {icon}",
                     callback_data=f"cancel:{booking['id']}",
                 )
             ]
